@@ -202,9 +202,10 @@ func appendApprovalFlags(cmd *[]string, permissions ports.PermissionMode) {
 	case ports.PermissionModeAuto:
 		*cmd = append(*cmd, "--force")
 	case ports.PermissionModeBypassPermissions:
-		// --yolo is cursor-agent's documented alias for --force, not a
-		// stronger bypass: Cursor has no separate "full bypass" tier, so
-		// Auto and BypassPermissions are behaviorally identical here.
-		*cmd = append(*cmd, "--yolo")
+		// cursor-agent has no separate "full bypass" tier: --force is the
+		// strongest approval flag it documents (--yolo is not listed in
+		// `cursor-agent --help` and errors as an unknown option), so Auto and
+		// BypassPermissions both map to --force and are behaviorally identical.
+		*cmd = append(*cmd, "--force")
 	}
 }

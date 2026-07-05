@@ -30,7 +30,7 @@ func TestGetLaunchCommandBuildsArgv(t *testing.T) {
 	// leading "-" is not parsed as a flag.
 	want := []string{
 		"cursor-agent",
-		"--yolo",
+		"--force",
 		"--", "-fix this",
 	}
 	if !reflect.DeepEqual(cmd, want) {
@@ -80,8 +80,8 @@ func TestGetLaunchCommandMapsApprovalModes(t *testing.T) {
 		{
 			name:        "bypass-permissions",
 			permission:  ports.PermissionModeBypassPermissions,
-			want:        []string{"--yolo"},
-			notExpected: []string{"--force"},
+			want:        []string{"--force"},
+			notExpected: []string{"--yolo"},
 		},
 		{
 			name:        "unknown falls back to default",
