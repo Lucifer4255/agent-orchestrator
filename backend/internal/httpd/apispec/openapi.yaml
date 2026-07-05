@@ -707,6 +707,19 @@ paths:
       summary: Resolve review threads on a pull request
       tags:
       - prs
+  /api/v1/runtime/status:
+    get:
+      operationId: getRuntimeStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeStatusResponse'
+          description: OK
+      summary: Report whether the selected terminal runtime can start agent sessions
+      tags:
+      - runtime
   /api/v1/sessions:
     get:
       operationId: listSessions
@@ -2271,6 +2284,27 @@ components:
       required:
       - ok
       - sessionId
+      type: object
+    RuntimeStatusResponse:
+      properties:
+        available:
+          type: boolean
+        installHint:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        platform:
+          type: string
+        runtime:
+          type: string
+        version:
+          type: string
+      required:
+      - available
+      - runtime
+      - platform
       type: object
     SendSessionMessageRequest:
       properties:
