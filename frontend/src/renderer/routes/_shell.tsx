@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { type CSSProperties, useCallback, useEffect, useRef } from "react";
 import { ShellTopbar } from "../components/ShellTopbar";
+import { TmuxPreflightGate } from "../components/TmuxPreflightGate";
 import { OrchestratorReplacementDialog } from "../components/OrchestratorReplacementDialog";
 import { Sidebar } from "../components/Sidebar";
 import { SidebarProvider } from "../components/ui/sidebar";
@@ -213,6 +214,7 @@ function ShellLayout() {
 
 	return (
 		<ShellProvider value={{ daemonStatus, createProject }}>
+			<TmuxPreflightGate daemonStatus={daemonStatus} />
 			{/* The topbar spans the full window width above the sidebar row (the
           macOS traffic lights + TitlebarNav cluster sit in its left inset),
           and the sidebar hangs below it — so the sidebar border stops at the

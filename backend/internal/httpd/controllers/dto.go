@@ -510,6 +510,19 @@ type MarkAllNotificationsReadResponse struct {
 	Notifications []NotificationResponse `json:"notifications"`
 }
 
+// RuntimeStatusResponse is the body of GET /api/v1/runtime/status: whether the
+// selected terminal runtime (tmux on Darwin/Linux, ConPTY on Windows) can start
+// agent sessions, plus install guidance when tmux is missing.
+type RuntimeStatusResponse struct {
+	Available   bool   `json:"available"`
+	Runtime     string `json:"runtime"`
+	Platform    string `json:"platform"`
+	Message     string `json:"message,omitempty"`
+	InstallHint string `json:"installHint,omitempty"`
+	Path        string `json:"path,omitempty"`
+	Version     string `json:"version,omitempty"`
+}
+
 // ImportStatusResponse is the body of GET /api/v1/import: whether a legacy AO
 // install is available to import, and the root the daemon would read from.
 type ImportStatusResponse struct {

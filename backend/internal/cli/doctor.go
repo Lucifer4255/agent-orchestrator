@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/codex"
+	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/probe"
 	"github.com/aoagents/agent-orchestrator/backend/internal/config"
 )
 
@@ -305,21 +306,33 @@ func (c *commandContext) checkTerminalRuntime(ctx context.Context) doctorCheck {
 }
 
 func (c *commandContext) checkTmux(ctx context.Context) doctorCheck {
-	path, err := c.deps.LookPath("tmux")
-	if err != nil || path == "" {
-		return doctorCheck{Level: doctorWarn, Section: doctorSectionTools, Name: "tmux", Message: "not found in PATH; required on macOS/Linux to start sessions"}
+	avail := probe.AvailabilityStatus(ctx, probe.Prober{
+		LookPath: c.deps.LookPath,
+		Run:      c.deps.CommandOutput,
+	})
+	switch {
+	case avail.Available:
+		return doctorCheck{
+			Level:   doctorPass,
+			Section: doctorSectionTools,
+			Name:    "tmux",
+			Message: avail.Message,
+		}
+	case avail.Path == "":
+		return doctorCheck{
+			Level:   doctorWarn,
+			Section: doctorSectionTools,
+			Name:    "tmux",
+			Message: "not found in PATH; required on macOS/Linux to start sessions",
+		}
+	default:
+		return doctorCheck{
+			Level:   doctorFail,
+			Section: doctorSectionTools,
+			Name:    "tmux",
+			Message: avail.Message,
+		}
 	}
-	reqCtx, cancel := context.WithTimeout(ctx, probeTimeout)
-	defer cancel()
-	out, err := c.deps.CommandOutput(reqCtx, path, "-V")
-	if err != nil {
-		return doctorCheck{Level: doctorFail, Section: doctorSectionTools, Name: "tmux", Message: fmt.Sprintf("%s: %v", path, err)}
-	}
-	version := firstOutputLine(out)
-	if version == "" {
-		version = "version unknown"
-	}
-	return doctorCheck{Level: doctorPass, Section: doctorSectionTools, Name: "tmux", Message: fmt.Sprintf("%s (%s)", path, version)}
 }
 
 // checkHooksLog surfaces recent agent hook delivery failures. `ao hooks`

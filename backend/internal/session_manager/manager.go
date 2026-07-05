@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/probe"
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
@@ -1374,8 +1375,8 @@ func (m *Manager) validateRuntimePrerequisites() error {
 	if runtime.GOOS == "windows" {
 		return nil
 	}
-	if path, err := m.lookPath("tmux"); err != nil || path == "" {
-		return fmt.Errorf("%w: tmux required on macOS/Linux but not in PATH", ports.ErrRuntimePrerequisite)
+	if !probe.TmuxOnPath(m.lookPath) {
+		return probe.PrerequisiteError()
 	}
 	return nil
 }

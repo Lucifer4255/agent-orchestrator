@@ -280,6 +280,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/runtime/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Report whether the selected terminal runtime can start agent sessions */
+        get: operations["getRuntimeStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -825,6 +842,15 @@ export interface components {
             killed?: boolean;
             ok: boolean;
             sessionId: string;
+        };
+        RuntimeStatusResponse: {
+            available: boolean;
+            installHint?: string;
+            message?: string;
+            path?: string;
+            platform: string;
+            runtime: string;
+            version?: string;
         };
         SendSessionMessageRequest: {
             message: string;
@@ -1935,6 +1961,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    getRuntimeStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeStatusResponse"];
                 };
             };
         };

@@ -200,7 +200,8 @@ var schemaNames = map[string]string{
 	"ReviewPRReviewState": "PRReviewState",
 	// httpd/controllers: import wire envelopes
 	"ControllersImportStatusResponse": "ImportStatusResponse",
-	"ControllersImportRunResponse":    "ImportRunResponse",
+	"ControllersImportRunResponse":        "ImportRunResponse",
+	"ControllersRuntimeStatusResponse":  "RuntimeStatusResponse",
 	// legacyimport report
 	"LegacyimportReport": "ImportReport",
 	// service/project entities + DTOs
@@ -292,7 +293,20 @@ func operations() []operation {
 	ops = append(ops, reviewOperations()...)
 	ops = append(ops, notificationOperations()...)
 	ops = append(ops, importOperations()...)
+	ops = append(ops, runtimeOperations()...)
 	return ops
+}
+
+func runtimeOperations() []operation {
+	return []operation{
+		{
+			method: http.MethodGet, path: "/api/v1/runtime/status", id: "getRuntimeStatus", tag: "runtime",
+			summary: "Report whether the selected terminal runtime can start agent sessions",
+			resps: []respUnit{
+				{http.StatusOK, controllers.RuntimeStatusResponse{}},
+			},
+		},
+	}
 }
 
 func agentOperations() []operation {
