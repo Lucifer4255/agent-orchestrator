@@ -10,7 +10,7 @@ import (
 func TestLoadDefaults(t *testing.T) {
 	// Clear every recognised var so we observe pure defaults regardless of the
 	// surrounding environment.
-	for _, k := range []string{"AO_PORT", "AO_REQUEST_TIMEOUT", "AO_SHUTDOWN_TIMEOUT", "AO_RUN_FILE", "AO_DATA_DIR", "AO_AGENT", "AO_ALLOWED_ORIGINS", "AO_TELEMETRY_EVENTS", "AO_TELEMETRY_METRICS", "AO_TELEMETRY_REMOTE", "AO_TELEMETRY_POSTHOG_KEY", "AO_TELEMETRY_POSTHOG_HOST"} {
+	for _, k := range []string{"AO_PORT", "AO_REQUEST_TIMEOUT", "AO_SHUTDOWN_TIMEOUT", "AO_RUN_FILE", "AO_DATA_DIR", "AO_AGENT", "AO_ALLOWED_ORIGINS", "AO_TELEMETRY_EVENTS", "AO_TELEMETRY_METRICS", "AO_TELEMETRY_REMOTE", "AO_TELEMETRY_POSTHOG_KEY", "AO_TELEMETRY_POSTHOG_HOST", "AO_TMUX_BIN", "AO_BUNDLED_TMUX_BIN"} {
 		t.Setenv(k, "")
 	}
 
@@ -64,6 +64,8 @@ func TestLoadOverrides(t *testing.T) {
 	t.Setenv("AO_TELEMETRY_REMOTE", "posthog")
 	t.Setenv("AO_TELEMETRY_POSTHOG_KEY", "phc_test")
 	t.Setenv("AO_TELEMETRY_POSTHOG_HOST", "https://eu.i.posthog.com")
+	t.Setenv("AO_TMUX_BIN", "/opt/custom/tmux")
+	t.Setenv("AO_BUNDLED_TMUX_BIN", "/Applications/Agent Orchestrator.app/Contents/Resources/tmux/tmux")
 
 	cfg, err := Load()
 	if err != nil {
@@ -89,6 +91,12 @@ func TestLoadOverrides(t *testing.T) {
 	}
 	if cfg.Telemetry.Remote != TelemetryRemotePostHog || cfg.Telemetry.PostHogKey != "phc_test" || cfg.Telemetry.PostHogHost != "https://eu.i.posthog.com" {
 		t.Fatalf("Telemetry remote = %+v", cfg.Telemetry)
+	}
+	if cfg.TmuxBin != "/opt/custom/tmux" {
+		t.Errorf("TmuxBin = %q, want /opt/custom/tmux", cfg.TmuxBin)
+	}
+	if cfg.BundledTmuxBin != "/Applications/Agent Orchestrator.app/Contents/Resources/tmux/tmux" {
+		t.Errorf("BundledTmuxBin = %q, want bundled app path", cfg.BundledTmuxBin)
 	}
 }
 

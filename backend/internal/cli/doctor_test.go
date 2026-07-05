@@ -58,11 +58,15 @@ func TestDoctorChecksTmuxVersion(t *testing.T) {
 		t.Skip("ao doctor emits a conpty check on Windows, not tmux")
 	}
 	setConfigEnv(t)
-	c := doctorContext(t, map[string]string{"git": "/bin/git", "tmux": "/bin/tmux"}, func(_ context.Context, name string, args ...string) ([]byte, error) {
+	tmuxPath := filepath.Join(t.TempDir(), "tmux")
+	if err := os.WriteFile(tmuxPath, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatalf("WriteFile tmux stub: %v", err)
+	}
+	c := doctorContext(t, map[string]string{"git": "/bin/git", "tmux": tmuxPath}, func(_ context.Context, name string, args ...string) ([]byte, error) {
 		switch name {
 		case "/bin/git":
 			return []byte("git version 2.43.0\n"), nil
-		case "/bin/tmux":
+		case tmuxPath:
 			if len(args) != 1 || args[0] != "-V" {
 				t.Fatalf("unexpected tmux command: %s %v", name, args)
 			}
@@ -74,8 +78,8 @@ func TestDoctorChecksTmuxVersion(t *testing.T) {
 	})
 
 	check := findDoctorCheck(t, c.runDoctor(context.Background()), "tmux")
-	if check.Level != doctorPass || !strings.Contains(check.Message, "3.3a") {
-		t.Fatalf("tmux check = %+v, want PASS with version", check)
+	if check.Level != doctorPass || !strings.Contains(check.Message, "3.3a") || !strings.Contains(check.Message, "PATH") {
+		t.Fatalf("tmux check = %+v, want PASS with version and PATH source", check)
 	}
 }
 
@@ -86,11 +90,19 @@ func TestDoctorChecksTmuxVersionFailsOnError(t *testing.T) {
 		t.Skip("ao doctor emits a conpty check on Windows, not tmux")
 	}
 	setConfigEnv(t)
-	c := doctorContext(t, map[string]string{"git": "/bin/git", "tmux": "/bin/tmux"}, func(_ context.Context, name string, _ ...string) ([]byte, error) {
+	tmuxPath := filepath.Join(t.TempDir(), "tmux")
+	if err := os.WriteFile(tmuxPath, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatalf("WriteFile tmux stub: %v", err)
+	}
+	c := doctorContext(t, map[string]string{"git": "/bin/git", "tmux": tmuxPath}, func(_ context.Context, name string, _ ...string) ([]byte, error) {
 		if name == "/bin/git" {
 			return []byte("git version 2.43.0\n"), nil
 		}
-		return nil, errors.New("exec: tmux: not found")
+		if name == tmuxPath {
+			return nil, errors.New("exec: tmux: not found")
+		}
+		t.Fatalf("unexpected command: %s", name)
+		return nil, nil
 	})
 
 	check := findDoctorCheck(t, c.runDoctor(context.Background()), "tmux")
@@ -109,8 +121,35 @@ func TestDoctorWarnsWhenTmuxMissing(t *testing.T) {
 	})
 
 	check := findDoctorCheck(t, c.runDoctor(context.Background()), "tmux")
-	if check.Level != doctorWarn {
+	if check.Level != doctorWarn || !strings.Contains(check.Message, "not found in PATH") {
 		t.Fatalf("tmux check = %+v, want WARN", check)
+	}
+}
+
+func TestDoctorUsesBundledTmuxWhenPathMissing(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("ao doctor emits a conpty check on Windows, not tmux")
+	}
+	setConfigEnv(t)
+	bundled := filepath.Join(t.TempDir(), "tmux")
+	if err := os.WriteFile(bundled, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatalf("WriteFile bundled tmux stub: %v", err)
+	}
+	t.Setenv("AO_BUNDLED_TMUX_BIN", bundled)
+	c := doctorContext(t, map[string]string{"git": "/bin/git"}, func(_ context.Context, name string, args ...string) ([]byte, error) {
+		if name == "/bin/git" {
+			return []byte("git version 2.43.0\n"), nil
+		}
+		if name == bundled {
+			return []byte("tmux 3.4\n"), nil
+		}
+		t.Fatalf("unexpected command: %s %v", name, args)
+		return nil, nil
+	})
+
+	check := findDoctorCheck(t, c.runDoctor(context.Background()), "tmux")
+	if check.Level != doctorPass || !strings.Contains(check.Message, "bundled") || !strings.Contains(check.Message, "3.4") {
+		t.Fatalf("tmux check = %+v, want PASS with bundled source", check)
 	}
 }
 

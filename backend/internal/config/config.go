@@ -94,6 +94,11 @@ type Config struct {
 	AllowedOrigins []string
 	// Telemetry controls local/remote telemetry sinks.
 	Telemetry TelemetryConfig
+	// TmuxBin is an explicit tmux executable override (AO_TMUX_BIN).
+	TmuxBin string
+	// BundledTmuxBin is the desktop app's bundled tmux path (AO_BUNDLED_TMUX_BIN).
+	// Used only when tmux is not on PATH and no explicit override is set.
+	BundledTmuxBin string
 }
 
 // Addr returns the host:port the HTTP server binds. It uses net.JoinHostPort so
@@ -120,6 +125,8 @@ func (c Config) Addr() string {
 //	AO_TELEMETRY_REMOTE  remote exporter off|posthog (default off)
 //	AO_TELEMETRY_POSTHOG_KEY   PostHog project key
 //	AO_TELEMETRY_POSTHOG_HOST  PostHog host (default DefaultTelemetryPostHogHost)
+//	AO_TMUX_BIN          explicit tmux executable (overrides PATH and bundled)
+//	AO_BUNDLED_TMUX_BIN  bundled tmux path from the desktop app (fallback only)
 //
 // The bind host is not configurable: the daemon is loopback-only by design.
 func Load() (Config, error) {
@@ -212,6 +219,13 @@ func Load() (Config, error) {
 	}
 	if raw := os.Getenv("AO_TELEMETRY_POSTHOG_HOST"); raw != "" {
 		cfg.Telemetry.PostHogHost = raw
+	}
+
+	if raw := os.Getenv("AO_TMUX_BIN"); raw != "" {
+		cfg.TmuxBin = raw
+	}
+	if raw := os.Getenv("AO_BUNDLED_TMUX_BIN"); raw != "" {
+		cfg.BundledTmuxBin = raw
 	}
 
 	runFile, err := resolveRunFilePath()

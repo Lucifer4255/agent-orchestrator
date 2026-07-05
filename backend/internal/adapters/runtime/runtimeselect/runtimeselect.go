@@ -9,6 +9,7 @@ import (
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/conpty"
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/tmux"
+	"github.com/aoagents/agent-orchestrator/backend/internal/config"
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 )
 
@@ -29,9 +30,11 @@ var _ Runtime = (*conpty.Runtime)(nil)
 
 // New returns the per-platform runtime: tmux on Darwin/Linux, conpty on Windows.
 // log is accepted for signature stability with callers but is currently unused.
-func New(_ *slog.Logger) Runtime {
+// cfg supplies tmux binary resolution (see tmux.ResolveBinary).
+func New(_ *slog.Logger, cfg config.Config) Runtime {
 	if runtime.GOOS != "windows" {
-		return tmux.New(tmux.Options{})
+		binary, _ := tmux.ResolveBinary(cfg.TmuxBin, cfg.BundledTmuxBin, tmux.DefaultBinaryDeps())
+		return tmux.New(tmux.Options{Binary: binary})
 	}
 	return conpty.New(conpty.Options{})
 }

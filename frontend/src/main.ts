@@ -44,6 +44,7 @@ import {
 } from "./shared/daemon-attach";
 import { shouldReplacePortHolder } from "./shared/daemon-takeover";
 import { buildDaemonEnv, resolveShellEnv, type ShellRunner } from "./shared/shell-env";
+import { bundledTmuxDaemonEnv } from "./shared/bundled-tmux";
 import { DEFAULT_POSTHOG_HOST, DEFAULT_POSTHOG_PROJECT_KEY } from "./shared/posthog-config";
 import { buildTelemetryBootstrap } from "./shared/telemetry";
 import { createBrowserViewHost, type BrowserViewHost } from "./main/browser-view-host";
@@ -333,11 +334,12 @@ function daemonEnv(): NodeJS.ProcessEnv {
 	// supervisor on attach (headless `ao start` daemons get no AO_OWNER and stay
 	// unlinked, preserving their persistence across app quit).
 	const ownerTag = { AO_OWNER: "app" };
+	const bundledTmux = bundledTmuxDaemonEnv(app.isPackaged, process.resourcesPath, process.platform);
 	// Windows keeps the old behavior exactly: no shell probe, no unix PATH floor.
 	if (process.platform === "win32") {
 		return { ...process.env, ...telemetryOverrides(), ...ownerTag };
 	}
-	return buildDaemonEnv(process.env, cachedShellEnv, { ...telemetryOverrides(), ...ownerTag });
+	return buildDaemonEnv(process.env, cachedShellEnv, { ...telemetryOverrides(), ...ownerTag, ...bundledTmux });
 }
 
 function pathKey(value: string): string {

@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/codex"
+	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/tmux"
 	"github.com/aoagents/agent-orchestrator/backend/internal/config"
 )
 
@@ -168,7 +169,7 @@ func (c *commandContext) runDoctor(ctx context.Context) []doctorCheck {
 
 	checks = append(checks,
 		c.checkGit(ctx),
-		c.checkTerminalRuntime(ctx),
+		c.checkTerminalRuntime(ctx, cfg),
 		c.checkAOBinary(),
 	)
 	for _, harness := range doctorHarnesses {
@@ -292,7 +293,7 @@ func (c *commandContext) checkGit(ctx context.Context) doctorCheck {
 
 // checkTerminalRuntime checks the runtime multiplexer used on this platform:
 // tmux on Darwin/Linux, ConPTY (built-in) on Windows.
-func (c *commandContext) checkTerminalRuntime(ctx context.Context) doctorCheck {
+func (c *commandContext) checkTerminalRuntime(ctx context.Context, cfg config.Config) doctorCheck {
 	if runtime.GOOS == "windows" {
 		return doctorCheck{
 			Level:   doctorPass,
@@ -301,13 +302,21 @@ func (c *commandContext) checkTerminalRuntime(ctx context.Context) doctorCheck {
 			Message: "ConPTY (built-in): no external terminal multiplexer required on Windows",
 		}
 	}
-	return c.checkTmux(ctx)
+	return c.checkTmux(ctx, cfg)
 }
 
-func (c *commandContext) checkTmux(ctx context.Context) doctorCheck {
-	path, err := c.deps.LookPath("tmux")
-	if err != nil || path == "" {
-		return doctorCheck{Level: doctorWarn, Section: doctorSectionTools, Name: "tmux", Message: "not found in PATH; required on macOS/Linux to start sessions"}
+func (c *commandContext) checkTmux(ctx context.Context, cfg config.Config) doctorCheck {
+	deps := tmux.BinaryDeps{
+		LookPath: c.deps.LookPath,
+		Stat:     os.Stat,
+	}
+	path, source := tmux.ResolveBinary(cfg.TmuxBin, cfg.BundledTmuxBin, deps)
+	if path == "" {
+		msg := "not found in PATH and no bundled tmux configured; required on macOS/Linux to start sessions"
+		if cfg.TmuxBin != "" {
+			msg = fmt.Sprintf("AO_TMUX_BIN=%q is not an executable file", cfg.TmuxBin)
+		}
+		return doctorCheck{Level: doctorWarn, Section: doctorSectionTools, Name: "tmux", Message: msg}
 	}
 	reqCtx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
@@ -319,7 +328,10 @@ func (c *commandContext) checkTmux(ctx context.Context) doctorCheck {
 	if version == "" {
 		version = "version unknown"
 	}
-	return doctorCheck{Level: doctorPass, Section: doctorSectionTools, Name: "tmux", Message: fmt.Sprintf("%s (%s)", path, version)}
+	return doctorCheck{
+		Level: doctorPass, Section: doctorSectionTools, Name: "tmux",
+		Message: tmux.ResolveBinaryMessage(path, version, source),
+	}
 }
 
 // checkHooksLog surfaces recent agent hook delivery failures. `ao hooks`
