@@ -37,12 +37,9 @@ session-events.jsonl.*
 
 # Environment
 .direnv/
-.env
-.env.*
 !.env.example
 
 # Editor / IDE
-.vscode/
 .idea/
 *.swp
 *~
@@ -73,3 +70,4 @@ frontend/daemon/
 # Locally-added agent skills (not for the team)
 .agents/
 skills-lock.json
+config.bat
