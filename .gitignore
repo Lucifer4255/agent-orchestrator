@@ -37,12 +37,9 @@ session-events.jsonl.*
 
 # Environment
 .direnv/
-.env
-.env.*
 !.env.example
 
 # Editor / IDE
-.vscode/
 .idea/
 *.swp
 *~
@@ -69,3 +66,8 @@ frontend/test-results/
 
 # built daemon binary copied into the frontend bundle dir
 frontend/daemon/
+
+# Locally-added agent skills (not for the team)
+.agents/
+skills-lock.json
+config.bat
