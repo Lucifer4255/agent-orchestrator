@@ -79,7 +79,9 @@ func (p *Plugin) GetLaunchCommand(ctx context.Context, cfg ports.LaunchConfig) (
 
 	// Best-effort: suppress the interactive workspace-trust prompt for this
 	// AO-spawned worker workspace. A failure leaves the one-time prompt intact.
-	_ = ensureWorkspaceTrusted(cfg.WorkspacePath)
+	// cfg.Env carries the runtime's env overrides so the marker lands in the
+	// CURSOR_DATA_DIR the spawned cursor-agent will actually resolve.
+	_ = ensureWorkspaceTrusted(cfg.WorkspacePath, cfg.Env)
 
 	cmd = []string{binary}
 	appendApprovalFlags(&cmd, cfg.Permissions)
@@ -120,7 +122,7 @@ func (p *Plugin) GetRestoreCommand(ctx context.Context, cfg ports.RestoreConfig)
 
 	// Best-effort: keep the resumed session's workspace trusted (idempotent when
 	// already seeded at launch) so resume never re-triggers the trust prompt.
-	_ = ensureWorkspaceTrusted(cfg.Session.WorkspacePath)
+	_ = ensureWorkspaceTrusted(cfg.Session.WorkspacePath, cfg.Env)
 
 	cmd = make([]string, 0, 5)
 	cmd = append(cmd, binary)

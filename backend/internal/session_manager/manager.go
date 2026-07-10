@@ -262,6 +262,10 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 		return domain.SessionRecord{}, fmt.Errorf("spawn %s: %w", id, err)
 	}
 	agentConfig := effectiveAgentConfig(cfg.Kind, project.Config)
+	// Computed once and shared with the adapter so env-derived paths (e.g.
+	// Cursor's trust marker under CURSOR_DATA_DIR) resolve against the same
+	// environment the runtime exports into the agent process.
+	env := m.runtimeEnv(id, cfg.ProjectID, cfg.IssueID, project.Config.Env)
 	argv, err := agent.GetLaunchCommand(ctx, ports.LaunchConfig{
 		SessionID:     string(id),
 		WorkspacePath: ws.Path,
@@ -270,6 +274,7 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 		IssueID:       string(cfg.IssueID),
 		Config:        agentConfig,
 		Permissions:   agentConfig.Permissions,
+		Env:           env,
 	})
 	if err != nil {
 		_ = m.workspace.Destroy(ctx, ws)
@@ -289,7 +294,7 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 		SessionID:     id,
 		WorkspacePath: ws.Path,
 		Argv:          argv,
-		Env:           m.runtimeEnv(id, cfg.ProjectID, cfg.IssueID, project.Config.Env),
+		Env:           env,
 	})
 	if err != nil {
 		_ = m.workspace.Destroy(ctx, ws)
@@ -586,7 +591,10 @@ func (m *Manager) Restore(ctx context.Context, id domain.SessionID) (domain.Sess
 	}
 	// Restore re-applies the project's resolved agent config so a configured
 	// model/permissions carry across a restore, matching fresh spawn.
-	argv, err := restoreArgv(ctx, agent, id, ws.Path, meta, systemPrompt, effectiveAgentConfig(rec.Kind, project.Config), rec.Kind)
+	// The env is computed once and shared with the adapter for the same reason
+	// as in spawn: env-derived adapter paths must match the runtime's exports.
+	env := m.runtimeEnv(id, rec.ProjectID, rec.IssueID, project.Config.Env)
+	argv, err := restoreArgv(ctx, agent, id, ws.Path, meta, systemPrompt, effectiveAgentConfig(rec.Kind, project.Config), rec.Kind, env)
 	if err != nil {
 		return domain.SessionRecord{}, fmt.Errorf("restore %s: %w", id, err)
 	}
@@ -594,7 +602,7 @@ func (m *Manager) Restore(ctx context.Context, id domain.SessionID) (domain.Sess
 		SessionID:     id,
 		WorkspacePath: ws.Path,
 		Argv:          argv,
-		Env:           m.runtimeEnv(id, rec.ProjectID, rec.IssueID, project.Config.Env),
+		Env:           env,
 	})
 	if err != nil {
 		return domain.SessionRecord{}, fmt.Errorf("restore %s: runtime: %w", id, err)
@@ -1320,13 +1328,13 @@ func (m *Manager) prepareWorkspace(ctx context.Context, agent ports.Agent, id do
 // a worker with no prompt and no native session id has nothing to restore from.
 // Orchestrators are promptless by design and always relaunch fresh with the
 // system prompt only.
-func restoreArgv(ctx context.Context, agent ports.Agent, id domain.SessionID, workspacePath string, meta domain.SessionMetadata, systemPrompt string, agentConfig ports.AgentConfig, kind domain.SessionKind) ([]string, error) {
+func restoreArgv(ctx context.Context, agent ports.Agent, id domain.SessionID, workspacePath string, meta domain.SessionMetadata, systemPrompt string, agentConfig ports.AgentConfig, kind domain.SessionKind, env map[string]string) ([]string, error) {
 	ref := ports.SessionRef{
 		ID:            string(id),
 		WorkspacePath: workspacePath,
 		Metadata:      map[string]string{ports.MetadataKeyAgentSessionID: meta.AgentSessionID},
 	}
-	cmd, ok, err := agent.GetRestoreCommand(ctx, ports.RestoreConfig{Session: ref, SystemPrompt: systemPrompt, Config: agentConfig, Permissions: agentConfig.Permissions})
+	cmd, ok, err := agent.GetRestoreCommand(ctx, ports.RestoreConfig{Session: ref, SystemPrompt: systemPrompt, Config: agentConfig, Permissions: agentConfig.Permissions, Env: env})
 	if err != nil {
 		return nil, fmt.Errorf("restore command: %w", err)
 	}
@@ -1347,6 +1355,7 @@ func restoreArgv(ctx context.Context, agent ports.Agent, id domain.SessionID, wo
 		SystemPrompt:  systemPrompt,
 		Config:        agentConfig,
 		Permissions:   agentConfig.Permissions,
+		Env:           env,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("launch command: %w", err)

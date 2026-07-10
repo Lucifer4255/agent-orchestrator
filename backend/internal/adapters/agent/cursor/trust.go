@@ -39,7 +39,13 @@ var cursorSlugNonAlnum = regexp.MustCompile(`[^A-Za-z0-9]+`)
 // seeded — mirroring the codex adapter's workspace-trust handling. Best-effort:
 // any error is returned for the caller to ignore, so a seed failure degrades to
 // the pre-existing one-time prompt rather than blocking launch.
-func ensureWorkspaceTrusted(workspacePath string) error {
+//
+// env is the environment overrides the runtime exports into the spawned
+// cursor-agent process (ports.LaunchConfig.Env / RestoreConfig.Env). The
+// marker must land in the data dir the CHILD resolves, not the daemon's: a
+// project-level env.CURSOR_DATA_DIR override changes where cursor-agent looks,
+// so the same override must steer where the marker is written.
+func ensureWorkspaceTrusted(workspacePath string, env map[string]string) error {
 	path := strings.TrimSpace(workspacePath)
 	if path == "" {
 		return nil
@@ -48,7 +54,7 @@ func ensureWorkspaceTrusted(workspacePath string) error {
 	seen := map[string]bool{}
 	var firstErr error
 	for _, variant := range trustPathVariants(path) {
-		dir := cursorProjectStorageDir(variant)
+		dir := cursorProjectStorageDir(variant, env)
 		if dir == "" || seen[dir] {
 			continue
 		}
@@ -73,13 +79,19 @@ func trustPathVariants(path string) []string {
 
 // cursorProjectStorageDir returns the per-workspace project-storage directory
 // cursor-agent derives for workspacePath: <base>/projects/<slug>. base is
-// $CURSOR_DATA_DIR when set, else ~/.cursor. Returns "" when neither is
+// CURSOR_DATA_DIR as the spawned process will see it — the env overrides win
+// over the daemon's own environment, mirroring how the runtime exports env
+// (overrides on top of os.Environ()) — else ~/.cursor. Returns "" when none is
 // resolvable. This intentionally omits cursor-agent's long-path hashing
 // fallback: that only applies to the shorter, capped storage variant, whereas
 // the trust marker is keyed off the uncapped slug (verified against on-disk
 // markers for >92-char worktree paths).
-func cursorProjectStorageDir(workspacePath string) string {
-	base := strings.TrimSpace(os.Getenv("CURSOR_DATA_DIR"))
+func cursorProjectStorageDir(workspacePath string, env map[string]string) string {
+	base, overridden := env["CURSOR_DATA_DIR"]
+	if !overridden {
+		base = os.Getenv("CURSOR_DATA_DIR")
+	}
+	base = strings.TrimSpace(base)
 	if base == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
