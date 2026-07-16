@@ -37,12 +37,9 @@ session-events.jsonl.*
 
 # Environment
 .direnv/
-.env
-.env.*
 !.env.example
 
 # Editor / IDE
-.vscode/
 .idea/
 *.swp
 *~
@@ -78,3 +75,7 @@ frontend/tmux-dist/
 # Locally-added agent skills (not for the team)
 .agents/
 skills-lock.json
+
+# Local pnpm artifacts
+pnpm-lock.yaml
+config.bat
