@@ -188,11 +188,22 @@ error. A system tmux always wins; nothing is installed onto the user's machine.
   pinned at the top of that script, then Forge ships `tmux-dist` as an
   `extraResource` so macOS signing/notarization seals it into the bundle.
   `AO_SKIP_TMUX_FETCH=1` skips the fetch for offline dev packaging (the build
-  then has no bundled fallback). deb/rpm additionally declare a system tmux
-  dependency.
+  then has no bundled fallback). deb/rpm do **not** declare a system tmux
+  dependency: the whole point of the bundle is that no package manager
+  install is required, so the resolver falls back to it if PATH has none.
 - **Rolling a new tmux version.** Dispatch the workflow with the new versions
   (update the source-tarball sha256s in the workflow env first), wait for the
   `tmux-artifacts-v*` release, then update `TMUX_DIST_TAG` and the binary
   sha256 map in `scripts/fetch-tmux.mjs` from the release's `checksums.txt`.
+- **Missing release / unpinned checksums.** The `tmux-artifacts-v*` release
+  referenced by `TMUX_DIST_TAG` is published manually and may not exist yet on
+  a given branch or fork. By default `fetch-tmux.mjs` treats that (and an
+  unpinned sha256) as non-fatal: it warns and packages without the bundled
+  fallback, same as `AO_SKIP_TMUX_FETCH=1`, so local/dev/testing-build
+  packaging never breaks on it. `frontend-release.yml` and
+  `frontend-nightly.yml` set `AO_REQUIRE_TMUX_FETCH=1` on their Publish steps
+  so the **signed, user-facing** builds fail loudly instead of silently
+  shipping without the fallback — before enabling that for a real cut, dispatch
+  `tmux-artifacts.yml` and fill in the sha256 pins per the rollover step above.
 - **Licenses.** tmux ISC, libevent BSD-3-Clause, ncurses MIT-X11 — all
   redistribution-compatible; the artifact release notes restate them.

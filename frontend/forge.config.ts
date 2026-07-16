@@ -129,9 +129,6 @@ const config: ForgeConfig = {
 					icon: "assets/icon.png",
 					maintainer: "Agent Orchestrator",
 					homepage: "https://github.com/aoagents/agent-orchestrator",
-					// Complement to the bundled fallback: a system tmux always
-					// wins over the bundle when present (issue #2443).
-					depends: ["tmux"],
 				},
 			},
 		},
@@ -143,9 +140,6 @@ const config: ForgeConfig = {
 					// rpmbuild rejects a spec with an empty License field.
 					license: "MIT",
 					homepage: "https://github.com/aoagents/agent-orchestrator",
-					// Complement to the bundled fallback: a system tmux always
-					// wins over the bundle when present (issue #2443).
-					requires: ["tmux"],
 				},
 			},
 		},

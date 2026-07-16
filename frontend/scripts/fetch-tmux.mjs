@@ -7,6 +7,13 @@
 // Runs from the prepackage/premake hooks so the binary exists BEFORE
 // electron-forge copies extraResources and signs the bundle (resources
 // written after signing make macOS report the app as "damaged").
+//
+// The tmux-artifacts release referenced below does not exist on every
+// fork/branch (it is published by manually dispatching the workflow above),
+// so a missing release or an unpinned checksum only fails the build when
+// AO_REQUIRE_TMUX_FETCH=1 — set by the official signed release/nightly
+// workflows. Everywhere else this degrades to "no bundled fallback", same as
+// AO_SKIP_TMUX_FETCH, so default/dev/testing packaging never breaks on it.
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -104,13 +111,36 @@ async function main() {
 		return;
 	}
 
+	// Official signed release/nightly builds set this so a missing artifact
+	// release or an unpinned checksum fails the build loudly instead of
+	// silently shipping without the bundled fallback. Everywhere else (local
+	// packaging, PR/testing-build CI) degrades gracefully: the tmux-artifacts
+	// release may not exist yet on every fork/branch, and that must not break
+	// default packaging.
+	const required = process.env.AO_REQUIRE_TMUX_FETCH === "1";
+
+	if (isPlaceholderSha256(dist.sha256)) {
+		if (required) {
+			console.error(`fetch-tmux: AO_REQUIRE_TMUX_FETCH=1 but no sha256 pin is set for ${dist.asset}.`);
+			console.error("fetch-tmux: pin the release's checksums.txt hash in fetch-tmux.mjs before cutting a signed release.");
+			process.exit(1);
+		}
+		console.warn(
+			`fetch-tmux: no sha256 pin for ${dist.asset}; using release checksums.txt (pin it in fetch-tmux.mjs after verifying provenance).`,
+		);
+	}
+
 	const checksumsUrl = releaseAssetUrl(TMUX_DIST_TAG, TMUX_DIST_REPO, "checksums.txt");
 	console.log(`fetch-tmux: fetching ${checksumsUrl}`);
 	const checksumsRes = await fetch(checksumsUrl, { redirect: "follow" });
 	if (!checksumsRes.ok) {
 		console.error(`fetch-tmux: checksums.txt download failed: HTTP ${checksumsRes.status} ${checksumsRes.statusText}`);
 		console.error(`fetch-tmux: dispatch .github/workflows/tmux-artifacts.yml to publish ${TMUX_DIST_TAG}, or set AO_SKIP_TMUX_FETCH=1 for dev packaging.`);
-		process.exit(1);
+		if (required) {
+			process.exit(1);
+		}
+		console.warn("fetch-tmux: continuing without the bundled tmux fallback (set AO_REQUIRE_TMUX_FETCH=1 to make this fatal).");
+		return;
 	}
 
 	let expectedHash;
@@ -119,12 +149,6 @@ async function main() {
 	} catch (err) {
 		console.error(`fetch-tmux: ${err instanceof Error ? err.message : String(err)}`);
 		process.exit(1);
-	}
-
-	if (isPlaceholderSha256(dist.sha256)) {
-		console.warn(
-			`fetch-tmux: no sha256 pin for ${dist.asset}; using release checksums.txt (pin it in fetch-tmux.mjs after verifying provenance).`,
-		);
 	}
 
 	if (existsSync(outPath) && sha256(readFileSync(outPath)) === expectedHash) {
@@ -137,8 +161,11 @@ async function main() {
 	const res = await fetch(url, { redirect: "follow" });
 	if (!res.ok) {
 		console.error(`fetch-tmux: download failed: HTTP ${res.status} ${res.statusText}`);
-		console.error("fetch-tmux: set AO_SKIP_TMUX_FETCH=1 to package without the bundled fallback (dev only).");
-		process.exit(1);
+		if (required) {
+			process.exit(1);
+		}
+		console.warn("fetch-tmux: continuing without the bundled tmux fallback (set AO_REQUIRE_TMUX_FETCH=1 to make this fatal).");
+		return;
 	}
 	const body = Buffer.from(await res.arrayBuffer());
 	const got = sha256(body);
