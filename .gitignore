@@ -41,12 +41,9 @@ frontend/.tanstack/
 
 # Environment
 .direnv/
-.env
-.env.*
 !.env.example
 
 # Editor / IDE
-.vscode/
 .idea/
 *.swp
 *~
@@ -85,3 +82,4 @@ e2e-artifacts/
 
 # Local pnpm artifacts
 pnpm-lock.yaml
+config.bat
